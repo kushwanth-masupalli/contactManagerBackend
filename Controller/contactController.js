@@ -3,7 +3,7 @@ const Contact = require('../database/contactSchema');
 
 // ✅ GET all contacts of the logged-in user
 const getAllContacts = asyncHandler(async (req, res) => {
-  const contacts = await Contact.find({ user_id: req.user.id });
+  const contacts = await Contact.find({ user_id: req.user.user.id });
   res.status(200).json(contacts);
 });
 
@@ -28,12 +28,13 @@ const createContact = asyncHandler(async (req, res) => {
     throw new Error('All fields are mandatory');
   }
 
-  const newContact = await Contact.create({
-    user_id: req.user.id,
-    name,
-    email,
-    phoneno,
-  });
+  // Example fix for creating a contact
+const newContact = await Contact.create({
+  user_id: req.user.user.id, // <-- FIXED
+  name,
+  email,
+  phoneno,
+});
 
   res.status(201).json(newContact);
 });
