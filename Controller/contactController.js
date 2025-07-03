@@ -1,76 +1,79 @@
 const asyncHandler = require('express-async-handler');
-const Contact = require('../database/contactSchema.js');
+const Contact = require('../database/contactSchema');
 
-// GET all contacts
+// ✅ GET all contacts of the logged-in user
 const getAllContacts = asyncHandler(async (req, res) => {
-  const contacts = await Contact.find();
+  const contacts = await Contact.find({ user_id: req.user.id });
   res.status(200).json(contacts);
 });
 
-// GET contact by ID
+// ✅ GET a single contact by ID (only if it belongs to the user)
 const getContactById = asyncHandler(async (req, res) => {
-  const newContact = await Contact.findById(req.params.id);
-  if (!newContact) {
-    res.status(404);
-    throw new Error('Contact not found');
-  }
-  res.status(200).json(newContact);
-});
+  const contact = await Contact.findById(req.params.id);
 
-// UPDATE contact by ID
-const updateContact = asyncHandler(async (req, res) => {
-  const newContact = await Contact.findById(req.params.id);
-  if (!newContact) {
+  if (!contact || contact.user_id.toString() !== req.user.id) {
     res.status(404);
-    throw new Error('Contact not found');
+    throw new Error('Contact not found or not authorized');
   }
 
-  const { name, email, phoneno } = req.body;
-  console.log(name, email, phoneno); 
-
-  newContact.name = name || newContact.name;
-  newContact.email = email || newContact.email;
-  newContact.phoneno = phoneno || newContact.phoneno;
-
-  const updatedContact = await newContact.save();
-  res.status(200).json(updatedContact);
+  res.status(200).json(contact);
 });
 
-// CREATE new contact
+// ✅ CREATE a new contact for the logged-in user
 const createContact = asyncHandler(async (req, res) => {
   const { name, email, phoneno } = req.body;
+
   if (!name || !email || !phoneno) {
     res.status(400);
     throw new Error('All fields are mandatory');
   }
 
-  const newContact = new Contact({
+  const newContact = await Contact.create({
+    user_id: req.user.id,
     name,
     email,
     phoneno,
   });
 
-  const savedContact = await newContact.save();
-  console.log('Contact saved successfully', savedContact);
-  res.status(201).json(savedContact);
+  res.status(201).json(newContact);
 });
 
-// DELETE contact by ID
-const deleteContactById = asyncHandler(async (req, res) => {
-  const newContact = await Contact.findById(req.params.id);
-  if (!newContact) {
+// ✅ UPDATE a contact by ID (only if user owns it)
+const updateContact = asyncHandler(async (req, res) => {
+  const contact = await Contact.findById(req.params.id);
+
+  if (!contact || contact.user_id.toString() !== req.user.id) {
     res.status(404);
-    throw new Error('Contact not found');
+    throw new Error('Contact not found or not authorized');
   }
 
-  await newContact.remove();
+  const { name, email, phoneno } = req.body;
+
+  contact.name = name || contact.name;
+  contact.email = email || contact.email;
+  contact.phoneno = phoneno || contact.phoneno;
+
+  const updatedContact = await contact.save();
+  res.status(200).json(updatedContact);
+});
+
+// ✅ DELETE a contact by ID (only if user owns it)
+const deleteContactById = asyncHandler(async (req, res) => {
+  const contact = await Contact.findById(req.params.id);
+
+  if (!contact || contact.user_id.toString() !== req.user.id) {
+    res.status(404);
+    throw new Error('Contact not found or not authorized');
+  }
+
+  await contact.remove();
   res.status(200).json({ message: `Deleted contact with id ${req.params.id}` });
 });
 
 module.exports = {
   getAllContacts,
   getContactById,
-  updateContact,
   createContact,
+  updateContact,
   deleteContactById,
 };
